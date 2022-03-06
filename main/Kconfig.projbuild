@@ -1,0 +1,26 @@
+menu "Telegram Configuration"
+
+    config TELEGRAM_TOKEN
+        string "Telegram API token"
+        default "123456789:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        help
+            Telegram API token.
+
+    config TELEGRAM_CHAT_ID_ACCESS_LIST
+        string "Telegram allowed chat_id values"
+        default "111111111,2222222222"
+        help
+            List allowed chat_id values. Character "," is used as the delimiter.
+
+endmenu
+
+
+menu "LYWSD03MMC Configuration"
+
+    config LYWSD03MMC_LOCATIONS_LIST
+        string "LYWSD03MMC allowed chat_id values"
+        default "{\"ATC_AAAAAA\": \"Kitchen\",\"ATC_BBBBBB\": \"Bedroom\"}"
+        help
+            List known locations sensors. Format JSON key-value.
+
+endmenu
