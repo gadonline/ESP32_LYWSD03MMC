@@ -17,7 +17,7 @@
 #include "esp_eth.h"
 #include "protocol_examples_common.h"
 
-#include <esp_https_server.h>
+#include <esp_http_server.h>
 #include "esp_tls.h"
 
 
@@ -54,6 +54,7 @@
 #define INVALID_HANDLE   0
 #define TELEGRAM_TOKEN CONFIG_TELEGRAM_TOKEN
 #define TELEGRAM_CHAT_ID_ACCESS_LIST CONFIG_TELEGRAM_CHAT_ID_ACCESS_LIST
+#define TELEGRAM_HTTP_PROXY_SERVER CONFIG_TELEGRAM_HTTP_PROXY_SERVER
 #define LYWSD03MMC_LOCATIONS_LIST CONFIG_LYWSD03MMC_LOCATIONS_LIST
 
 //START BT CODE
@@ -289,7 +290,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 char *device;
                 
                 
-                sprintf(url, "https://api.telegram.org/bot%s/sendMessage?chat_id=%d&text=", TELEGRAM_TOKEN, cjson_content_message_chat_id->valueint);
+                sprintf(url, "http://%s/bot%s/sendMessage?chat_id=%d&text=", TELEGRAM_HTTP_PROXY_SERVER, TELEGRAM_TOKEN, cjson_content_message_chat_id->valueint);
                 
                 int i;
                 for (i = 0; i<device_count; i++)
@@ -314,6 +315,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 };
                 esp_http_client_handle_t client = esp_http_client_init(&config);
                 free(url);
+                esp_http_client_set_header(client, "Host", "api.telegram.org");
                 esp_err_t err = esp_http_client_perform(client);
             
                 if (err == ESP_OK) {
@@ -359,19 +361,9 @@ static httpd_handle_t start_webserver(void)
     // Start the httpd server
     ESP_LOGI(TAG, "Starting server");
 
-    httpd_ssl_config_t conf = HTTPD_SSL_CONFIG_DEFAULT();
+    httpd_config_t conf = HTTPD_DEFAULT_CONFIG();
 
-    extern const unsigned char cacert_pem_start[] asm("_binary_cacert_pem_start");
-    extern const unsigned char cacert_pem_end[]   asm("_binary_cacert_pem_end");
-    conf.cacert_pem = cacert_pem_start;
-    conf.cacert_len = cacert_pem_end - cacert_pem_start;
-
-    extern const unsigned char prvtkey_pem_start[] asm("_binary_prvtkey_pem_start");
-    extern const unsigned char prvtkey_pem_end[]   asm("_binary_prvtkey_pem_end");
-    conf.prvtkey_pem = prvtkey_pem_start;
-    conf.prvtkey_len = prvtkey_pem_end - prvtkey_pem_start;
-
-    esp_err_t ret = httpd_ssl_start(&server, &conf);
+    esp_err_t ret = httpd_start(&server, &conf);
     if (ESP_OK != ret) {
         ESP_LOGI(TAG, "Error starting server!");
         return NULL;
@@ -387,7 +379,7 @@ static httpd_handle_t start_webserver(void)
 static void stop_webserver(httpd_handle_t server)
 {
     // Stop the httpd server
-    httpd_ssl_stop(server);
+    httpd_stop(server);
 }
 
 static void disconnect_handler(void* arg, esp_event_base_t event_base,
