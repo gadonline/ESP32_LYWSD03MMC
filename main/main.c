@@ -128,6 +128,8 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     
                     if (param->scan_rst.ble_adv[10] == 255) {
                         temp = temp - 25.6;
+                    } else if (param->scan_rst.ble_adv[10] == 1) {
+                        temp = temp + 25.6;
                     }
                     
                     int hum = param->scan_rst.ble_adv[12];
