@@ -318,8 +318,12 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 esp_http_client_handle_t client = esp_http_client_init(&config);
                 free(url);
                 esp_http_client_set_header(client, "Host", "api.telegram.org");
-                esp_err_t err = esp_http_client_perform(client);
-            
+                esp_err_t err;
+                
+                do {
+                    err = esp_http_client_perform(client);
+                }while(err == ESP_ERR_HTTP_EAGAIN);
+                
                 if (err == ESP_OK) {
                     printf("HTTPS Status = %d, content_length = %lld\n",
                             esp_http_client_get_status_code(client),
