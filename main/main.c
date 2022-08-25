@@ -33,6 +33,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include "math.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -124,12 +125,12 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     mac[4] = param->scan_rst.ble_adv[8];
                     mac[5] = param->scan_rst.ble_adv[9];
                     int rssi = param->scan_rst.rssi;
-                    float temp = param->scan_rst.ble_adv[11]/10.;
+                    float temp = param->scan_rst.ble_adv[11];
                     
                     if (param->scan_rst.ble_adv[10] == 255) {
-                        temp = temp - 25.6;
+                        temp = temp - 256;
                     } else if (param->scan_rst.ble_adv[10] == 1) {
-                        temp = temp + 25.6;
+                        temp = temp + 256;
                     }
                     
                     int hum = param->scan_rst.ble_adv[12];
@@ -304,7 +305,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                     //\n %%0A
                     //% %%25
                     device = malloc(100);
-                    sprintf(device, "%s%%3A%%20%%F0%%9F%%8C%%A1%.1f%%C2%%B0%%20%%F0%%9F%%92%%A7%d%%25%%0A", device_list[i].location, device_list[i].temp, device_list[i].hum);
+                    sprintf(device, "%s%%3A%%20%%F0%%9F%%8C%%A1%.1f%%C2%%B0%%20%%F0%%9F%%92%%A7%d%%25%%0A", device_list[i].location, device_list[i].temp / 10, device_list[i].hum);
                     strcat(url, device);
                     free(device);
                 }
