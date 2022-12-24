@@ -246,7 +246,10 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 }
 
 static esp_err_t telegram_post_handler(httpd_req_t *req)
-{   
+{
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_send(req, "ESP32_LYWSD03MMC\n", HTTPD_RESP_USE_STRLEN);
+    
     char *content;
     content = malloc(500);
     size_t recv_size = MIN(req->content_len, 500);
@@ -259,6 +262,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
         cJSON* cjson_content_message = NULL;
         cJSON* cjson_content_message_chat = NULL;
         cJSON* cjson_content_message_chat_id = NULL;
+        cJSON* cjson_content_message_text = NULL;
         
         cjson_content = cJSON_Parse(content);
         free(content);
@@ -268,8 +272,17 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
             cjson_content_message = cJSON_GetObjectItem(cjson_content, "message");
             cjson_content_message_chat = cJSON_GetObjectItem(cjson_content_message, "chat");
             cjson_content_message_chat_id = cJSON_GetObjectItemCaseSensitive(cjson_content_message_chat, "id");
+            cjson_content_message_text = cJSON_GetObjectItemCaseSensitive(cjson_content_message, "text");
             bool send_message = false;
             int chat_id;
+            
+            if (cJSON_IsString(cjson_content_message_text)) {
+                char *message = cjson_content_message_text->valuestring;
+                printf("message: %s\n", message);
+                if (strcmp("reboot", message) == 0) {
+                    abort();
+                }
+            }
             
             if (cJSON_IsNumber(cjson_content_message_chat_id)) {
                 chat_id = cjson_content_message_chat_id->valueint;
@@ -341,9 +354,6 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
     } else {
         free(content);
     }
-    
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, "ESP32_LYWSD03MMC\n", HTTPD_RESP_USE_STRLEN);
     
     return ESP_OK;
 }
