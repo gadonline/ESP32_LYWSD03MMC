@@ -127,7 +127,9 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     int rssi = param->scan_rst.rssi;
                     float temp = param->scan_rst.ble_adv[11];
                     
-                    if (param->scan_rst.ble_adv[10] == 255) {
+                    if (param->scan_rst.ble_adv[10] == 254) {
+                        temp = temp - 512;
+                    } else if (param->scan_rst.ble_adv[10] == 255) {
                         temp = temp - 256;
                     } else if (param->scan_rst.ble_adv[10] == 1) {
                         temp = temp + 256;
