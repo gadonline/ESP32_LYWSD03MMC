@@ -330,6 +330,8 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 esp_http_client_config_t config = {
                     .url = url,
                     .crt_bundle_attach = esp_crt_bundle_attach,
+                    .buffer_size = 1024,
+                    .buffer_size_tx = 1024,
                 };
                 esp_http_client_handle_t client = esp_http_client_init(&config);
                 free(url);
