@@ -56,7 +56,6 @@
 #define TELEGRAM_TOKEN CONFIG_TELEGRAM_TOKEN
 #define TELEGRAM_CHAT_ID_ACCESS_LIST CONFIG_TELEGRAM_CHAT_ID_ACCESS_LIST
 #define TELEGRAM_HTTP_PROXY_SERVER CONFIG_TELEGRAM_HTTP_PROXY_SERVER
-#define LYWSD03MMC_LOCATIONS_LIST CONFIG_LYWSD03MMC_LOCATIONS_LIST
 
 //START BT CODE
 
@@ -69,10 +68,34 @@ struct device_struct {
     int hum;
     int bat_pct;
     int bat_v;
+    char title[80];
 };
 struct device_struct device_list[10];
 
 int device_count = 0;
+
+char* urlencode(char* originalText)
+{
+    // allocate memory for the worst possible case (all characters need to be encoded)
+    char *encodedText = (char *)malloc(sizeof(char)*strlen(originalText)*3+1);
+    
+    const char *hex = "0123456789abcdef";
+    
+    int pos = 0;
+    for (int i = 0; i < strlen(originalText); i++) {
+        if (('a' <= originalText[i] && originalText[i] <= 'z')
+            || ('A' <= originalText[i] && originalText[i] <= 'Z')
+            || ('0' <= originalText[i] && originalText[i] <= '9')) {
+                encodedText[pos++] = originalText[i];
+            } else {
+                encodedText[pos++] = '%';
+                encodedText[pos++] = hex[originalText[i] >> 4];
+                encodedText[pos++] = hex[originalText[i] & 15];
+            }
+    }
+    encodedText[pos] = '\0';
+    return encodedText;
+}
 
 // scan parameters
 static esp_ble_scan_params_t ble_scan_params = {
@@ -86,8 +109,6 @@ static esp_ble_scan_params_t ble_scan_params = {
 // GAP callback
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
-    cJSON* cjson_location_name = NULL;
-    cJSON* cjson_locations = cJSON_Parse(LYWSD03MMC_LOCATIONS_LIST);
     switch (event) {
 		
 		case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: 
@@ -117,6 +138,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     uint8_t *name = NULL;
                     uint8_t name_len = 0;
                     char location[12];
+                    char char_name[12];
                     
                     mac[0] = param->scan_rst.ble_adv[4];
                     mac[1] = param->scan_rst.ble_adv[5];
@@ -139,14 +161,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     int bat_pct = param->scan_rst.ble_adv[13];
                     int bat_v = param->scan_rst.ble_adv[14] * 256 + param->scan_rst.ble_adv[15];
                     name = esp_ble_resolve_adv_data(param->scan_rst.ble_adv, ESP_BLE_AD_TYPE_NAME_CMPL, &name_len);
-                    
-                    cjson_location_name = cJSON_GetObjectItem(cjson_locations, (char*)name);
-                    
-                    if (cJSON_IsString(cjson_location_name)) {
-                        sprintf(location, "%s", cjson_location_name->valuestring);
-                    } else {
-                        sprintf(location, "%s", name);
-                    }
+                    sprintf(char_name, "%s", name);
                     
                     int i;
                     if (device_count != 0) {
@@ -161,6 +176,17 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     }
                     
                     if (add == true) {
+                        nvs_handle_t my_handle;
+                        esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
+                        if (err != ESP_OK) {
+                            printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+                        } else {
+                            size_t required_size;
+                            nvs_get_str(my_handle, char_name, NULL,&required_size);
+                            nvs_get_str(my_handle, char_name, (char *)&location, &required_size);
+                            nvs_close(my_handle);
+                        }
+                        
                         printf("add %d: %x:%x:%x:%x:%x:%x\n", device_count, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
                         device_list[device_count].rssi = rssi;
                         memcpy(device_list[device_count].mac, mac, 6);
@@ -191,7 +217,6 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 			printf("Event %d unhandled\n\n", event);
 			break;
 	}
-    cJSON_Delete(cjson_locations);
 }
 
 //END BT CODE
@@ -280,9 +305,28 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
             
             if (cJSON_IsString(cjson_content_message_text)) {
                 char *message = cjson_content_message_text->valuestring;
-                printf("message: %s\n", message);
-                if (strcmp("reboot", message) == 0) {
+                char *message_strtok = strtok(message, " ");
+                int arguments_count = 3;
+                char *arguments[arguments_count];
+                
+                int i = 0;
+                while ((message_strtok != NULL) && (i<arguments_count)) {
+                    printf ("%s\n",message_strtok);
+                    arguments[i] = message_strtok;
+                    message_strtok = strtok(NULL, " ");
+                    i++;
+                }
+                if (!strcmp("reboot", arguments[0])) {
                     abort();
+                } else if (!strcmp("set_name", arguments[0])) {
+                    nvs_handle_t my_handle;
+                    esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
+                    if (err != ESP_OK) {
+                        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+                    } else {
+                        nvs_set_str(my_handle, arguments[1], arguments[2]);
+                        nvs_close(my_handle);
+                    }
                 }
             }
             
@@ -302,7 +346,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
             }
             
             if (send_message) {
-                printf("free_heap_size_start: %d\n", esp_get_free_heap_size());
+                printf("free_heap_size_start: %lu\n", esp_get_free_heap_size());
                 char *url;
                 url = malloc(800);
                 char *device;
@@ -313,15 +357,9 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 int i;
                 for (i = 0; i<device_count; i++)
                 {
-                    //: %%3A
-                    //🌡 %%F0%%9F%%8C%%A1
-                    //° %%C2%%B0
-                    //💧 %%F0%%9F%%92%%A7
-                    //\n %%0A
-                    //% %%25
                     device = malloc(100);
-                    sprintf(device, "%s%%3A%%20%%F0%%9F%%8C%%A1%.1f%%C2%%B0%%20%%F0%%9F%%92%%A7%d%%25%%0A", device_list[i].location, device_list[i].temp / 10, device_list[i].hum);
-                    strcat(url, device);
+                    sprintf(device, "%s %s: 🌡%.1f° 💧%d%%\n", device_list[i].name, device_list[i].location, device_list[i].temp / 10, device_list[i].hum);
+                    strcat(url, urlencode(device));
                     free(device);
                 }
                 
@@ -351,7 +389,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 }
                 
                 esp_http_client_cleanup(client);
-                printf("free_heap_size_stop: %d\n", esp_get_free_heap_size());
+                printf("free_heap_size_stop: %lu\n", esp_get_free_heap_size());
             }
         }
         cJSON_Delete(cjson_content);
@@ -523,7 +561,7 @@ void app_main(void)
         free(device_list_json_print);
         cJSON_Delete(device_list_json);
         
-        printf("free_heap_size: %d\n", esp_get_free_heap_size());
+        printf("free_heap_size: %lu\n", esp_get_free_heap_size());
 	}
     
     //END BT CODE
