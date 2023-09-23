@@ -304,6 +304,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
             cjson_content_message_text = cJSON_GetObjectItemCaseSensitive(cjson_content_message, "text");
             bool send_message = false;
             int chat_id;
+            bool full_report = false;
             
             if (cJSON_IsString(cjson_content_message_text)) {
                 char *message = cjson_content_message_text->valuestring;
@@ -329,6 +330,8 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                         nvs_set_str(my_handle, arguments[1], arguments[2]);
                         nvs_close(my_handle);
                     }
+                } else if (!strcmp("full", arguments[0]) || !strcmp("Full", arguments[0])) {
+                    full_report = true;
                 }
             }
             
@@ -357,12 +360,30 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 sprintf(url, "http://%s/bot%s/sendMessage?chat_id=%d&text=", TELEGRAM_HTTP_PROXY_SERVER, TELEGRAM_TOKEN, cjson_content_message_chat_id->valueint);
                 
                 int i;
-                for (i = 0; i<device_count; i++)
-                {
-                    device = malloc(100);
-                    sprintf(device, "%s %s: 🌡%.1f° 💧%d%%\n", device_list[i].name, device_list[i].location, device_list[i].temp / 10, device_list[i].hum);
-                    strcat(url, urlencode(device));
-                    free(device);
+                if (full_report == true) {
+                    for (i = 0; i<device_count; i++)
+                    {
+                        device = malloc(100);
+                        sprintf(device, "%s 🌡%.1f°💧%d%%\nlocation: %s\nbat: %d%% (%d mV)\nrssi: %d\n\n",
+                            device_list[i].name,
+                            device_list[i].temp / 10,
+                            device_list[i].hum,
+                            device_list[i].location,
+                            device_list[i].bat_pct,
+                            device_list[i].bat_v,
+                            device_list[i].rssi
+                        );
+                        strcat(url, urlencode(device));
+                        free(device);
+                    }
+                } else {
+                    for (i = 0; i<device_count; i++)
+                    {
+                        device = malloc(100);
+                        sprintf(device, "🌡%.1f°💧%d%% %s\n", device_list[i].temp / 10, device_list[i].hum, device_list[i].location);
+                        strcat(url, urlencode(device));
+                        free(device);
+                    }
                 }
                 
                 printf("url: %s\n", url);
