@@ -73,6 +73,7 @@ struct device_struct {
 struct device_struct device_list[10];
 
 int device_count = 0;
+bool bt_failed = false;
 
 char* urlencode(char* originalText)
 {
@@ -133,6 +134,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 		case ESP_GAP_BLE_SCAN_RESULT_EVT:
 			if(param->scan_rst.search_evt == ESP_GAP_SEARCH_INQ_RES_EVT) {
 				if(param->scan_rst.ble_adv[4] == 0xA4 && param->scan_rst.ble_adv[5] == 0xC1 && param->scan_rst.ble_adv[6] == 0x38) {
+                    bt_failed = false;
                     bool add = true;
                     uint8_t mac[6];
                     uint8_t *name = NULL;
@@ -346,7 +348,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
             }
             
             if (send_message) {
-                printf("free_heap_size_start: %lu\n", esp_get_free_heap_size());
+                printf("free_heap_size_start: %d\n", esp_get_free_heap_size());
                 char *url;
                 url = malloc(800);
                 char *device;
@@ -381,7 +383,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 }while(err == ESP_ERR_HTTP_EAGAIN);
                 
                 if (err == ESP_OK) {
-                    printf("HTTPS Status = %d, content_length = %lld\n",
+                    printf("HTTPS Status = %d, content_length = %d\n",
                             esp_http_client_get_status_code(client),
                             esp_http_client_get_content_length(client));
                 } else {
@@ -389,7 +391,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 }
                 
                 esp_http_client_cleanup(client);
-                printf("free_heap_size_stop: %lu\n", esp_get_free_heap_size());
+                printf("free_heap_size_stop: %d\n", esp_get_free_heap_size());
             }
         }
         cJSON_Delete(cjson_content);
@@ -520,49 +522,17 @@ void app_main(void)
 	ESP_ERROR_CHECK(esp_ble_gap_register_callback(esp_gap_cb));
 	printf("- GAP callback registered\n\n");
     
-	while(true){
-		// configure scan parameters
-		esp_ble_gap_set_scan_params(&ble_scan_params);
-		vTaskDelay(30000 / portTICK_PERIOD_MS);
-        
-        cJSON* device_list_json = cJSON_CreateObject();
-        cJSON* device_json = NULL;
-        char mac_str[18];
-        char adv_name_str[12];
-        char bat_str[14];
-        
-        int i;
-        for (i = 0; i<device_count; i++)
-        {
-            sprintf(mac_str, "%x:%x:%x:%x:%x:%x",
-                device_list[i].mac[0],
-                device_list[i].mac[1],
-                device_list[i].mac[2],
-                device_list[i].mac[3],
-                device_list[i].mac[4],
-                device_list[i].mac[5]
-            );
-            sprintf(adv_name_str, "%s", device_list[i].name);
-            sprintf(bat_str, "%d%% (%d mV)", device_list[i].bat_pct, device_list[i].bat_v);
-            device_json = cJSON_CreateObject();
-            cJSON_AddStringToObject(device_json, "adv_name", adv_name_str);
-            cJSON_AddStringToObject(device_json, "location", device_list[i].location);
-            cJSON_AddStringToObject(device_json, "mac", mac_str);
-            cJSON_AddNumberToObject(device_json, "rssi", device_list[i].rssi);
-            cJSON_AddNumberToObject(device_json, "temp", device_list[i].temp);
-            cJSON_AddNumberToObject(device_json, "hum", device_list[i].hum);
-            cJSON_AddStringToObject(device_json, "bat", bat_str);
-            cJSON_AddItemToObject(device_list_json, adv_name_str, device_json);
+    while(true){
+        printf("free_heap_size: %d\n", esp_get_free_heap_size());
+        esp_ble_gap_set_scan_params(&ble_scan_params);
+        printf("sleep 30 seconds\n");
+        bt_failed = true;
+        vTaskDelay(30000 / portTICK_PERIOD_MS);
+        printf("free_heap_size: %d\n", esp_get_free_heap_size());
+        if (bt_failed == true) {
+            printf("BT failed, reboot system!\n");
+            abort();
         }
-        
-        char *device_list_json_print = cJSON_Print(device_list_json);
-        printf("%s\n", device_list_json_print);
-        
-        free(device_list_json_print);
-        cJSON_Delete(device_list_json);
-        
-        printf("free_heap_size: %lu\n", esp_get_free_heap_size());
-	}
-    
+    }
     //END BT CODE
 }
