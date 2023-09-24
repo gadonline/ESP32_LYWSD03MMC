@@ -68,7 +68,6 @@ struct device_struct {
     int hum;
     int bat_pct;
     int bat_v;
-    char title[80];
 };
 struct device_struct device_list[10];
 
@@ -166,14 +165,12 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     sprintf(char_name, "%s", name);
                     
                     int i;
-                    if (device_count != 0) {
-                        for (i = 0; i<device_count; i++)
-                        {
-                            add = true;
-                             if (memcmp(device_list[i].mac, mac, 6) == 0) {
-                                add = false;
-                                break;
-                            }
+                    for (i = 0; i<device_count; i++)
+                    {
+                        add = true;
+                        if (!strcmp(char_name, (char *)&device_list[i].name)) {
+                            add = false;
+                            break;
                         }
                     }
                     
@@ -224,7 +221,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 //END BT CODE
 
 /* A simple example that demonstrates how to create GET and POST
- * handlers and start an HTTPS server.
+ * handlers and start an HTTP server.
 */
 
 static const char *TAG = "example";
@@ -280,12 +277,11 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
     httpd_resp_send(req, "ESP32_LYWSD03MMC\n", HTTPD_RESP_USE_STRLEN);
     
     char *content;
-    content = malloc(500);
-    size_t recv_size = MIN(req->content_len, 500);
+    content = malloc(1024);
+    size_t recv_size = MIN(req->content_len, 1024);
 
     int ret = httpd_req_recv(req, content, recv_size);
-    printf("recv_size: %d\n", recv_size);
-    printf("ret: %d\n", ret);
+    printf("httpd_req_recv size: %d\n", ret);
     if (ret != 0) {
         cJSON* cjson_content = NULL;
         cJSON* cjson_content_message = NULL;
@@ -327,6 +323,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                     if (err != ESP_OK) {
                         printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
                     } else {
+                        printf("Save location to %s: %s\n", arguments[1], arguments[2]);
                         nvs_set_str(my_handle, arguments[1], arguments[2]);
                         nvs_close(my_handle);
                     }
@@ -373,6 +370,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                             device_list[i].bat_v,
                             device_list[i].rssi
                         );
+                        printf("device: %s\n", device);
                         strcat(url, urlencode(device));
                         free(device);
                     }
@@ -380,7 +378,8 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                     for (i = 0; i<device_count; i++)
                     {
                         device = malloc(100);
-                        sprintf(device, "🌡%.1f°💧%d%% %s\n", device_list[i].temp / 10, device_list[i].hum, device_list[i].location);
+                        sprintf(device, "%s: 🌡%.1f°💧%d%%\n", device_list[i].location, device_list[i].temp / 10, device_list[i].hum);
+                        printf("device: %s\n", device);
                         strcat(url, urlencode(device));
                         free(device);
                     }
@@ -404,7 +403,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 }while(err == ESP_ERR_HTTP_EAGAIN);
                 
                 if (err == ESP_OK) {
-                    printf("HTTPS Status = %d, content_length = %d\n",
+                    printf("HTTP Status = %d, content_length = %d\n",
                             esp_http_client_get_status_code(client),
                             esp_http_client_get_content_length(client));
                 } else {
