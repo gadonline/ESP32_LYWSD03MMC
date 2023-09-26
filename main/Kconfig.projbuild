@@ -19,14 +19,3 @@ menu "Telegram Configuration"
             Telegram API token.
 
 endmenu
-
-
-menu "LYWSD03MMC Configuration"
-
-    config LYWSD03MMC_LOCATIONS_LIST
-        string "LYWSD03MMC allowed chat_id values"
-        default "{\"ATC_AAAAAA\": \"Kitchen\",\"ATC_BBBBBB\": \"Bedroom\"}"
-        help
-            List known locations sensors. Format JSON key-value.
-
-endmenu
