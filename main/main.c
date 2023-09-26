@@ -311,7 +311,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 
                 int i = 0;
                 while ((message_strtok != NULL) && (i<arguments_count)) {
-                    printf ("%s\n",message_strtok);
+                    printf ("message: %s\n", message);
                     arguments[i] = message_strtok;
                     message_strtok = strtok(NULL, " ");
                     i++;
@@ -371,7 +371,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                             device_list[i].bat_v,
                             device_list[i].rssi
                         );
-                        printf("device: %s\n", device);
+                        printf("device: %s", device);
                         strcat(url, urlencode(device));
                         free(device);
                     }
@@ -382,7 +382,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                     {
                         device = malloc(100);
                         sprintf(device, "%s: 🌡%.1f°💧%d%%\n", device_list[i].location, device_list[i].temp / 10, device_list[i].hum);
-                        printf("device: %s\n", device);
+                        printf("device: %s", device);
                         strcat(url, urlencode(device));
                         free(device);
                     }
@@ -556,10 +556,11 @@ void app_main(void)
         printf("sleep 30 seconds\n");
         bt_failed = true;
         vTaskDelay(30000 / portTICK_PERIOD_MS);
-        printf("free_heap_size: %d\n", esp_get_free_heap_size());
         if (bt_failed == true) {
             printf("BT failed, reboot system!\n");
             abort();
+        } else {
+            printf("BT working!\n");
         }
     }
     //END BT CODE
