@@ -327,6 +327,14 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                         printf("Save location to %s: %s\n", arguments[1], arguments[2]);
                         nvs_set_str(my_handle, arguments[1], arguments[2]);
                         nvs_close(my_handle);
+                        
+                        for (i = 0; i<device_count; i++)
+                        {
+                            if (!strcmp(arguments[1], (char *)&device_list[i].name)) {
+                                sprintf(device_list[i].location, "%s", arguments[2]);
+                                break;
+                            }
+                        }
                     }
                 } else if (!strcmp("full", arguments[0]) || !strcmp("Full", arguments[0])) {
                     full_report = true;
@@ -353,7 +361,6 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 char *url;
                 url = malloc(800);
                 char *device;
-                
                 
                 sprintf(url, "http://%s/bot%s/sendMessage?chat_id=%d&text=", TELEGRAM_HTTP_PROXY_SERVER, TELEGRAM_TOKEN, cjson_content_message_chat_id->valueint);
                 
