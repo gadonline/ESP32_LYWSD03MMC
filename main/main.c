@@ -301,6 +301,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
             bool send_message = false;
             int chat_id;
             bool full_report = false;
+            bool reboot_status = false;
             
             if (cJSON_IsString(cjson_content_message_text)) {
                 char *message = cjson_content_message_text->valuestring;
@@ -316,7 +317,7 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                     i++;
                 }
                 if (!strcmp("reboot", arguments[0])) {
-                    abort();
+                    reboot_status = true;
                 } else if (!strcmp("set_name", arguments[0])) {
                     nvs_handle_t my_handle;
                     esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
@@ -374,6 +375,8 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                         strcat(url, urlencode(device));
                         free(device);
                     }
+                } else if (reboot_status == true) {
+                    strcat(url, urlencode("Reboot system!"));
                 } else {
                     for (i = 0; i<device_count; i++)
                     {
@@ -412,6 +415,11 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 
                 esp_http_client_cleanup(client);
                 printf("free_heap_size_stop: %d\n", esp_get_free_heap_size());
+                
+                if (reboot_status == true) {
+                    printf("Reboot system!\n");
+                    abort();
+                }
             }
         }
         cJSON_Delete(cjson_content);
