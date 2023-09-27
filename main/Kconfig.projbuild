@@ -12,9 +12,9 @@ menu "Telegram Configuration"
         help
             List allowed chat_id values. Character "," is used as the delimiter.
 
-    config TELEGRAM_HTTP_PROXY_SERVER
-        string "Telegram HTTP proxy server address"
-        default "192.168.1.1:8888"
+    config TELEGRAM_HTTP_API_URL
+        string "Telegram HTTP API URL"
+        default "https://api.telegram.org"
         help
             Telegram API token.
 

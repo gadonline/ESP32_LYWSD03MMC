@@ -55,7 +55,7 @@
 #define INVALID_HANDLE   0
 #define TELEGRAM_TOKEN CONFIG_TELEGRAM_TOKEN
 #define TELEGRAM_CHAT_ID_ACCESS_LIST CONFIG_TELEGRAM_CHAT_ID_ACCESS_LIST
-#define TELEGRAM_HTTP_PROXY_SERVER CONFIG_TELEGRAM_HTTP_PROXY_SERVER
+#define TELEGRAM_HTTP_API_URL CONFIG_TELEGRAM_HTTP_API_URL
 
 //START BT CODE
 
@@ -358,8 +358,8 @@ static esp_err_t telegram_post_handler(httpd_req_t *req)
                 url = malloc(800);
                 char *device;
                 
-                sprintf(url, "http://%s/bot%s/sendMessage?chat_id=%d&text=",
-                    TELEGRAM_HTTP_PROXY_SERVER,
+                sprintf(url, "%s/bot%s/sendMessage?chat_id=%d&text=",
+                    TELEGRAM_HTTP_API_URL,
                     TELEGRAM_TOKEN,
                     cjson_content_message_chat_id->valueint
                 );
